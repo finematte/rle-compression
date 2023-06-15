@@ -10,7 +10,7 @@ def rle_encode(img, output_path):
     """
     Run length encoding.
     """
-    pixels = np.array(img).flatten()
+    pixels = np.array(img).flatten().astype(int)  # convert Boolean to integer
     runs = []
     run_length = 0
     current_pixel = pixels[0]
@@ -34,7 +34,12 @@ def rle_encode(img, output_path):
         for run in runs:
             file.write(f"{run}\n")
 
-    return {"size": img.size, "runs": runs}
+    # Return also the size of the encoded data file
+    return {
+        "size": img.size,
+        "runs": runs,
+        "encoded_size": os.path.getsize(output_path),
+    }
 
 
 def rle_decode(rle_data):
@@ -130,23 +135,30 @@ def process_image(image_path):
     Process the selected image.
     """
     try:
-        img = Image.open(image_path)
+        original_img = Image.open(image_path)  # Keep a copy of the original image
+        original_img_data = np.array(original_img)
+
+        img = original_img.convert("L")  # Convert to grayscale
+
+        # Threshold the image to convert to binary (1-bit bitmap)
+        threshold = 128  # You may want to adjust this value
+        img = img.point(lambda p: p > threshold and 255)
+        img = img.convert("1")  # Convert image to 1 bit
 
         output_file = "encoding_data.txt"
 
-        encoded = rle_encode(img.convert("L"), output_file)
+        encoded = rle_encode(img, output_file)
 
         print(f"RLE: {encoded}")
 
         decoded_img_data = rle_decode(encoded)
-
-        original_img_data = np.array(img)
 
         decoded_img = Image.fromarray(np.uint8(decoded_img_data * 255))
         decoded_file = "decoded.bmp"
         decoded_img.save(decoded_file)
         print(f"Saved decoded image as {decoded_file}")
 
+        # Use the original_img_data for display
         show_images(original_img_data, decoded_img_data, image_path, decoded_file)
 
     except FileNotFoundError:
